@@ -1,33 +1,25 @@
 pipeline {
     agent any
-    
+
     stages {
-        stage('checkout') {
+
+        stage('Checkout') {
             steps {
-                git 'https://github.com/ReyazShaik/dockerproject.git'
+                git 'https://github.com/naveenkumarg3729-coder/jenkins-automation.git'
             }
         }
-        stage('build') {
+
+        stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $image .'
+                sh 'docker build -t bankapp:v1 .'
             }
         }
-        stage('tag') {
+
+        stage('Verify Image') {
             steps {
-                sh 'docker tag $image $repo'
+                sh 'docker images'
             }
         }
-        stage('push') {
-            steps {
-                sh 'docker login -u reyadocker -p $password'
-                sh 'docker push $repo'
-            }
-        }
-        stage('deploy') {
-            steps {
-                sh 'docker stack deploy bank -c docker-compose.yml'
-            }
-        }
+
     }
 }
-
