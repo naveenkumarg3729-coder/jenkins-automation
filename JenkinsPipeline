@@ -5,8 +5,9 @@ pipeline {
     }
 
     environment {
-        DOCKER_HUB_USER = 'naveenmaganti'
-        IMAGE_NAME = 'bankapp'
+        AWS_REGION = 'ap-south-2'
+        ECR_REPO   = '641134884964.dkr.ecr.ap-south-2.amazonaws.com/bankapp'
+        IMAGE_TAG  = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -19,32 +20,25 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                sh '''
-                docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-                '''
+                sh 'docker build -t bankapp:${IMAGE_TAG} .'
             }
         }
 
-        stage('Docker Login') {
+        stage('Login to ECR') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    sh '''
-                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    '''
-                }
+                sh '''
+                aws ecr get-login-password --region $AWS_REGION | \
+                docker login --username AWS --password-stdin \
+                641134884964.dkr.ecr.ap-south-2.amazonaws.com
+                '''
             }
         }
 
         stage('Tag Image') {
             steps {
                 sh '''
-                docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${DOCKER_HUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                docker tag bankapp:${IMAGE_TAG} \
+                $ECR_REPO:${IMAGE_TAG}
                 '''
             }
         }
@@ -52,29 +46,7 @@ pipeline {
         stage('Push Image') {
             steps {
                 sh '''
-                docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
-                '''
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                sh '''
-                docker rm -f bankapp-container || true
-
-                docker run -d \
-                  --name bankapp-container \
-                  -p 8080:80 \
-                  ${IMAGE_NAME}:${BUILD_NUMBER}
-                '''
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                sh '''
-                docker images
-                docker ps
+                docker push $ECR_REPO:${IMAGE_TAG}
                 '''
             }
         }
