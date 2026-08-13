@@ -1,3 +1,4 @@
+
 pipeline {
     agent {
         label 'docker-agent'
@@ -20,6 +21,8 @@ pipeline {
         stage('Verify Image') {
             steps {
                 sh 'docker images'
+                echo 'WEBHOOK TEST SUCCESS'
+                sh 'date'
             }
         }
     }
