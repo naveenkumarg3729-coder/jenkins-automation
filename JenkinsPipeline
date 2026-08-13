@@ -1,4 +1,3 @@
-
 pipeline {
     agent {
         label 'docker-agent'
@@ -18,11 +17,29 @@ pipeline {
             }
         }
 
-        stage('Verify Image') {
+        stage('Stop Old Container') {
             steps {
+                sh '''
+                docker rm -f bankapp-container || true
+                '''
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh '''
+                docker run -d \
+                --name bankapp-container \
+                -p 8080:80 \
+                bankapp:v1
+                '''
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh 'docker ps'
                 sh 'docker images'
-                echo 'WEBHOOK TEST SUCCESS'
-                sh 'date'
             }
         }
     }
