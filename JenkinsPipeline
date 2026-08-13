@@ -5,9 +5,11 @@ pipeline {
     }
 
     environment {
-        AWS_REGION = 'ap-south-2'
-        ECR_REPO   = '641134884964.dkr.ecr.ap-south-2.amazonaws.com/bankapp'
-        IMAGE_TAG  = "${BUILD_NUMBER}"
+        ACCOUNT_ID = '641134884964'
+        REGION = 'ap-south-2'
+        REPOSITORY = 'bankapp'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        REGISTRY = "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
     }
 
     stages {
@@ -20,33 +22,55 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                sh 'docker build -t bankapp:${IMAGE_TAG} .'
+                sh """
+                docker build -t ${REPOSITORY}:${IMAGE_TAG} .
+                """
             }
         }
 
-        stage('Login to ECR') {
+        stage('ECR Login') {
             steps {
-                sh '''
-                aws ecr get-login-password --region $AWS_REGION | \
-                docker login --username AWS --password-stdin \
-                641134884964.dkr.ecr.ap-south-2.amazonaws.com
-                '''
+                sh """
+                aws ecr get-login-password --region ${REGION} | \
+                docker login --username AWS --password-stdin ${REGISTRY}
+                """
             }
         }
 
         stage('Tag Image') {
             steps {
-                sh '''
-                docker tag bankapp:${IMAGE_TAG} \
-                $ECR_REPO:${IMAGE_TAG}
-                '''
+                sh """
+                docker tag ${REPOSITORY}:${IMAGE_TAG} \
+                ${REGISTRY}/${REPOSITORY}:${IMAGE_TAG}
+                """
             }
         }
 
         stage('Push Image') {
             steps {
+                sh """
+                docker push ${REGISTRY}/${REPOSITORY}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh """
+                docker rm -f bankapp-container || true
+
+                docker run -d \
+                --name bankapp-container \
+                -p 8080:80 \
+                ${REGISTRY}/${REPOSITORY}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Verify') {
+            steps {
                 sh '''
-                docker push $ECR_REPO:${IMAGE_TAG}
+                docker ps
                 '''
             }
         }
